@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h3>Créer un compte</h3>
+  <form method="post" action="/accounts/create">
+    <select name="account_type">
+      <option value="checking">Compte chèque</option>
+      <option value="savings">Compte épargne</option>
+    </select>
+    <button type="submit">Créer</button>
+  </form>
+</div>
+<div class="card">
+  <h3>Mes comptes</h3>
+  <table>
+    <thead><tr><th>ID</th><th>IBAN</th><th>Type</th><th>Solde</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for a in accounts %}
+      <tr>
+        <td>{{ a.id }}</td>
+        <td>{{ a.iban }}</td>
+        <td>{{ a.account_type }}</td>
+        <td>{{ '%.2f'|format(a.balance) }}</td>
+        <td>{{ a.status }}</td>
+        <td>
+          {% if a.status != 'closed' %}
+          <form method="post" action="/accounts/close/{{a.id}}" style="display:inline">
+            <button type="submit">Clore</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

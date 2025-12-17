@@ -1,0 +1,52 @@
+filebeat.inputs:
+
+  # A) Logs stdout/stderr du conteneur de l’app UNIQUEMENT
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    stream: all
+    cri.parse_flags: true
+    processors:
+      - add_docker_metadata: ~
+      # ⛔️ Drop tout sauf le conteneur "flask_app" (nom docker-compose)
+      - drop_event:
+          when:
+            not:
+              regexp:
+                container.name: ".*flask_app.*"
+    # Evite le backfill massif au premier démarrage
+    ignore_older: 10m
+    clean_inactive: 24h
+    close_inactive: 5m
+
+  # B) Fichiers JSON structurés écrits par l’app (/app/logs → ./logs/app)
+  - type: filestream
+    id: app-file
+    enabled: true
+    paths:
+      - /var/log/app/*.log
+    parsers:
+      - ndjson:
+          target: ""
+          add_error_key: true
+          overwrite_keys: true
+    ignore_older: 24h
+    clean_inactive: 48h
+    fields:
+      service: bank-flask-app
+      source_type: file
+    fields_under_root: true
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.to_files: false
+logging.to_stdout: true
+

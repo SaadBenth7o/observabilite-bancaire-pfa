@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="grid">
+  <div class="card">
+    <h3>Dépôt</h3>
+    <form method="post" action="/tx/deposit">
+      <select name="account_id">
+        {% for a in accounts %}<option value="{{a.id}}">{{a.iban}}</option>{% endfor %}
+      </select>
+      <input type="number" step="0.01" name="amount" placeholder="Montant"/>
+      <button>Déposer</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Retrait</h3>
+    <form method="post" action="/tx/withdraw">
+      <select name="account_id">
+        {% for a in accounts %}<option value="{{a.id}}">{{a.iban}}</option>{% endfor %}
+      </select>
+      <input type="number" step="0.01" name="amount" placeholder="Montant"/>
+      <button>Retirer</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Virement</h3>
+    <form method="post" action="/tx/transfer">
+      <label>De</label>
+      <select name="src_id">
+        {% for a in accounts %}<option value="{{a.id}}">{{a.iban}}</option>{% endfor %}
+      </select>
+      <label>À</label>
+      <select name="dst_id">
+        {% for a in accounts %}<option value="{{a.id}}">{{a.iban}}</option>{% endfor %}
+      </select>
+      <input type="number" step="0.01" name="amount" placeholder="Montant"/>
+      <button>Transférer</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Dernières opérations</h3>
+  <table>
+    <thead><tr><th>ID</th><th>Type</th><th>Montant</th></tr></thead>
+    <tbody>
+      {% for t in txs %}
+      <tr><td>{{ t.id }}</td><td>{{ t.kind }}</td><td>{{ '%.2f'|format(t.amount) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

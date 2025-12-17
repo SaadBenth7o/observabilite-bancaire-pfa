@@ -1,0 +1,22 @@
+packetbeat.interfaces.device: any
+
+packetbeat.flows:
+  enabled: true
+  timeout: 30s
+  period: 10s
+
+packetbeat.protocols:
+  - type: http
+    ports: [5000, 8000, 8080, 80]
+  - type: postgresql
+    ports: [5432]
+
+output.elasticsearch:
+  hosts: ["http://localhost:9200"]
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+
+setup.kibana:
+  host: "localhost:5601"
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Bank Supervision Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    header { background:#1f2937; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+    a { color:#93c5fd; text-decoration:none; }
+    .container { padding: 16px; }
+    .card { background:#111827; border-radius:12px; padding:16px; margin-bottom:16px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
+    input, select { padding:8px; border-radius:8px; border:1px solid #374151; background:#0b1222; color:#e2e8f0; }
+    button { padding:8px 14px; background:#2563eb; color:white; border:none; border-radius:10px; cursor:pointer;}
+    button:hover{ background:#1d4ed8; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding: 8px; border-bottom:1px solid #374151; text-align:left; }
+    .grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap:16px; }
+    .flash { padding:10px; border-radius:8px; margin-bottom:12px; }
+    .info { background:#1e3a8a; }
+    .error{ background:#7f1d1d; }
+  </style>
+</head>
+<body>
+<header>
+  <div><a href="/">🏦 BankApp</a></div>
+  <nav>
+    <a href="/accounts/">Comptes</a> |
+    <a href="/tx/">Transactions</a> |
+    <a href="/metrics">Metrics</a> |
+    <a href="/auth/logout">Logout</a>
+  </nav>
+</header>
+<div class="container">
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="flash {{cat}}">{{ msg }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

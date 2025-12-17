@@ -1,0 +1,33 @@
+metricbeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+setup.kibana:
+  host: "kibana:5601"
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+
+# Minimal built-in modules
+metricbeat.modules:
+  - module: system
+    period: 10s
+    metricsets: ["cpu","load","memory","network","process","process_summary","filesystem","fsstat","uptime"]
+    process.include_top_n:
+      by_cpu: 5
+      by_memory: 5
+    hostfs: "/hostfs"
+
+  - module: docker
+    period: 10s
+    hosts: ["unix:///var/run/docker.sock"]
+    enabled: true
+    metricsets: ["container","cpu","diskio","event","healthcheck","info","memory","network"]

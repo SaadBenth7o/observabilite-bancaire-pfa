@@ -1,0 +1,211 @@
+name: bank-app-supervision
+
+# ✅ Politique commune pour limiter la taille des logs Docker
+x-logging: &jsonlog
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+networks:
+  banknet:
+
+volumes:
+  esdata:
+  grafana_data:
+  pgdata:
+
+services:
+  postgres:
+    image: postgres:15.6
+    restart: unless-stopped
+    logging: *jsonlog
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [banknet]
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+      - ./sql/init:/docker-entrypoint-initdb.d:ro
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    restart: unless-stopped
+    logging: *jsonlog
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s -u elastic:${ELASTIC_PASSWORD} http://localhost:9200 >/dev/null"]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+    networks: [banknet]
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.3
+    restart: unless-stopped
+    logging: *jsonlog
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
+      - SERVER_PUBLICBASEURL=http://localhost:5601
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      - XPACK_SECURITY_ENCRYPTIONKEY=${KIBANA_SECURITY_KEY}
+      - XPACK_REPORTING_ENCRYPTIONKEY=${KIBANA_REPORTING_KEY}
+    ports:
+      - "5601:5601"
+    networks: [banknet]
+    depends_on:
+      - elasticsearch
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.14.3
+    restart: unless-stopped
+    logging: *jsonlog
+    environment:
+      - xpack.monitoring.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - LS_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    depends_on:
+      - elasticsearch
+    networks: [banknet]
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:8.14.3
+    restart: unless-stopped
+    logging: *jsonlog
+    ports:
+      - "8200:8200"
+    depends_on:
+      - elasticsearch
+      - kibana
+    networks: [banknet]
+    volumes:
+      - ./apm-server/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - APM_SECRET_TOKEN=${APM_SECRET_TOKEN}   
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.14.3
+    restart: unless-stopped
+    user: root
+    logging: *jsonlog
+    depends_on: [logstash]
+    networks: [banknet]
+    command: ["--strict.perms=false", "-e"]
+    environment:
+      - ELASTIC_CONTAINER=true
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs/app:/var/log/app:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.14.3
+    restart: unless-stopped
+    user: root
+    logging: *jsonlog
+    depends_on:
+      - elasticsearch
+      - kibana
+    networks: [banknet]
+    command: ["--strict.perms=false", "-e"]
+    volumes:
+      - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /proc:/hostfs/proc:ro
+      - /:/hostfs:ro
+
+  packetbeat:
+    image: docker.elastic.co/beats/packetbeat:8.14.3
+    restart: unless-stopped
+    user: root
+    logging: *jsonlog
+    network_mode: host
+    cap_add: ["NET_RAW", "NET_ADMIN"]
+    depends_on:
+      - elasticsearch
+    command: ["--strict.perms=false", "-e"]
+    volumes:
+      - ./packetbeat/packetbeat.yml:/usr/share/packetbeat/packetbeat.yml:ro
+
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    restart: unless-stopped
+    logging: *jsonlog
+    ports:
+      - "9090:9090"
+    networks: [banknet]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  node-exporter:
+    image: prom/node-exporter:v1.8.1
+    restart: unless-stopped
+    logging: *jsonlog
+    networks: [banknet]
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    restart: unless-stopped
+    logging: *jsonlog
+    ports:
+      - "3030:3000"
+    networks: [banknet]
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+
+  flask_app:
+    build:
+      context: ./app
+    restart: unless-stopped
+    logging: *jsonlog
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      - ELASTIC_APM_SERVER_URL=${ELASTIC_APM_SERVER_URL}
+      - ELASTIC_APM_SECRET_TOKEN=${APM_SECRET_TOKEN}
+      - ELASTIC_APM_SERVICE_NAME=${ELASTIC_APM_SERVICE_NAME}
+      - APP_ENV=${APP_ENV}
+      - LOG_LEVEL=${LOG_LEVEL}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - GUNICORN_CMD_ARGS=--access-logfile - --error-logfile - --timeout 120 --graceful-timeout 30 --workers 2 --threads 2
+    depends_on:
+      - postgres
+      - apm-server
+    networks: [banknet]
+    ports:
+      - "8080:8000"
+    volumes:
+      - ./logs/app:/app/logs
+

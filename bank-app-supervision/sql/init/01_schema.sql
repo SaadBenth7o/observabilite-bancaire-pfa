@@ -1,0 +1,26 @@
+CREATE TABLE IF NOT EXISTS "user" (
+  id SERIAL PRIMARY KEY,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL DEFAULT 'user',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS account (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  iban VARCHAR(34) UNIQUE NOT NULL,
+  account_type VARCHAR(20) NOT NULL,
+  balance NUMERIC(12,2) NOT NULL DEFAULT 0,
+  status VARCHAR(20) NOT NULL DEFAULT 'open',
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS transaction (
+  id SERIAL PRIMARY KEY,
+  account_id INTEGER NOT NULL REFERENCES account(id) ON DELETE CASCADE,
+  kind VARCHAR(20) NOT NULL, -- deposit / withdraw / transfer_in / transfer_out
+  amount NUMERIC(12,2) NOT NULL,
+  ref_tx INTEGER,
+  created_at TIMESTAMP DEFAULT NOW()
+);

@@ -1,0 +1,40 @@
+filebeat.inputs:
+  # 1) LOGS DES CONTENEURS DOCKER (inclut les access-logs Gunicorn envoyés en stdout)
+  - type: container
+    enabled: true
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    stream: all
+    cri.parse_flags: true
+
+  # 2) LOGS FICHIER DE L'APP (si tu écris encore dans ./logs/app/*.log)
+  - type: filestream
+    id: app-file
+    enabled: true
+    paths:
+      - /var/log/app/*.log
+    ignore_older: 0
+    clean_inactive: 0
+    fields:
+      service: bank-flask-app
+      source_type: file
+    fields_under_root: true
+    # Décommente si les lignes sont du NDJSON
+    # parsers:
+    #   - ndjson:
+    #       target: ""
+    #       overwrite_keys: true
+    #       add_error_key: true
+
+processors:
+  - add_host_metadata: ~
+  - add_cloud_metadata: ~
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.to_files: false
+logging.to_stdout: true
+
