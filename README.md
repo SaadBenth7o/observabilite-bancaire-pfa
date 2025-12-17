@@ -4,7 +4,7 @@
 
 Ce projet a été réalisé dans le cadre d'un **stage PFA (Projet de Fin d'Année) 2024-2025**, effectué entre **juillet et août 2024** (2 mois) au sein de la **Banque Populaire**, dans le **Centre Service**, département **Supervision des Flux, Services et Plateformes**.
 
-**Auteur :** [Votre Nom et Prénom]
+**Auteur :** BENDAHOU SAAD 
 
 ---
 
@@ -22,7 +22,7 @@ Ce projet vise à mettre en place une solution complète d'**observabilité appl
 
 ## 🏗️ Architecture du Projet
 
-![Architecture du Projet](docs/architecture.png)
+![Architecture du Projet](bank-app-supervision/docs/architecture.png)
 
 *Note : Veuillez ajouter l'image d'architecture dans le dossier `docs/` avec le nom `architecture.png`*
 
